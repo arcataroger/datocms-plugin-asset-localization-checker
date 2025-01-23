@@ -14,6 +14,13 @@ type MetadataByLocale = {
   title: string | null;
 };
 
+/*type Validators = {
+  required_alt_title?: {
+    title?: boolean;
+    alt?: boolean;
+  };
+};*/
+
 export const AssetLocalizationChecker = ({
   ctx,
 }: {
@@ -24,9 +31,8 @@ export const AssetLocalizationChecker = ({
     fieldPath,
     currentUserAccessToken,
     field: {
-      attributes: { validators, label, api_key },
+      attributes: { label },
     },
-    locale,
   } = ctx;
 
   /** Make sure we have the token. We need this for CMA lookups. Exit early if not. **/
@@ -82,6 +88,11 @@ export const AssetLocalizationChecker = ({
     [metadataByLocale],
   );
 
+  const missingTitles = useMemo(
+    () => metadataByLocale.filter((locale) => !locale.title),
+    [metadataByLocale],
+  );
+
   /** Look up asset details from the CMA **/
   const fetchUpload = async () => {
     try {
@@ -96,6 +107,13 @@ export const AssetLocalizationChecker = ({
     } catch (error) {
       console.error(error);
       await ctx.alert(`Error: ${error}`);
+    }
+  };
+
+  const editImage = async () => {
+    const uploadResult = await ctx.editUpload(upload_id);
+    if (uploadResult) {
+      await fetchUpload();
     }
   };
 
@@ -127,41 +145,62 @@ export const AssetLocalizationChecker = ({
               );
             })}
           </ul>
-          <Button
-            buttonSize={"s"}
-            onClick={() => {
-              ctx.editUpload(upload_id);
-            }}
-          >
-            Edit the asset to add alt text
+          <Button buttonSize={"xxs"} onClick={async () => await editImage()}>
+            Fix: Edit the asset to add alt text for each locale
           </Button>
         </Section>
       )}
-      {defaultAlt && metadataByLocale.length >= 1 && (
+      {missingTitles.length >= 1 && (
         <Section
-          title={`⚠️ Field-level override detected`}
+          title={`⚠️ Missing title detected in ${missingTitles.length} locale(s):`}
+          headerStyle={{ marginTop: "1em" }}
+        >
+          <ul>
+            {missingTitles.map((loc) => {
+              return (
+                <li>
+                  <strong>{humanReadableLocale(loc.locale)}</strong> does not
+                  have a title specified at the asset level.
+                </li>
+              );
+            })}
+          </ul>
+          <Button buttonSize={"xxs"} onClick={async () => await editImage()}>
+            Fix: Edit the asset to add a title for each locale
+          </Button>
+        </Section>
+      )}
+      {(defaultAlt || defaultTitle) && (
+        <Section
+          title={`⚠️ Field-level override(s) detected`}
           headerStyle={{ marginTop: "1em" }}
         >
           <p>
-            You also have a field-level override specified in the "{label}"
+            You also have field-level override(s) specified in the "{label}"
             field:
             <ul>
-              <li>"{defaultAlt}"</li>
+              {defaultAlt && <li>Alt: "{defaultAlt}"</li>}
+              {defaultTitle && <li>Title: "{defaultTitle}"</li>}
             </ul>
           </p>
           <p>
             <strong>
-              This overrides any asset-level alt text specified, meaning all
-              locales will use this value
+              This overrides any asset-level text specified, meaning all locales
+              will use this value instead.
             </strong>
-            . If that isn't what you intended, hover over the field and edit it
-            to remove the field-level override first, then edit the asset and
-            set the alt text for each locale there.
           </p>
+          <Button
+            buttonSize={"xxs"}
+            onClick={() => {
+              ctx.navigateTo(`#`);
+              ctx.navigateTo(`#fieldPath=${fieldPath}`);
+              ctx.scrollToField(fieldPath);
+            }}
+          >
+            Fix: Edit the field itself to remove override(s)
+          </Button>
         </Section>
       )}
-      <h2>Debug</h2>
-      <pre>{JSON.stringify(formValues[fieldPath], null, 2)}</pre>
     </Canvas>
   );
 };
