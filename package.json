@@ -3,8 +3,8 @@
   "description": "A field extension for single-asset fields that checks to make sure there is alt text and/or title filled in for all locales currently used in the record.",
   "homepage": "https://github.com/arcataroger/datocms-plugin-asset-localization-checker",
   "private": false,
-  "version": "0.1.0",
-  "author": "Roger Tuan <r.tuan@datocms.com> <r.tuan@datocms.com>",
+  "version": "0.2.0",
+  "author": "Roger Tuan (DatoCMS) <r.tuan@datocms.com>",
   "type": "module",
   "keywords": [
     "datocms-plugin"
@@ -29,18 +29,18 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@datocms/cma-client-browser": "^3.4.1",
-    "datocms-plugin-sdk": "^2.0.9",
-    "datocms-react-ui": "^2.0.9",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "@datocms/cma-client-browser": "^4.0.2",
+    "datocms-plugin-sdk": "^2.0.13",
+    "datocms-react-ui": "^2.0.14",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "globals": "^15.9.0",
-    "typescript": "^5.5.3",
-    "vite": "^5.4.1"
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "globals": "^16.3.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.4"
   }
 }
