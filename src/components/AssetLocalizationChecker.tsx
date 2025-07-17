@@ -5,7 +5,7 @@ import type {
 } from "datocms-plugin-sdk";
 import type { Upload } from "@datocms/cma-client/dist/types/generated/SimpleSchemaTypes";
 import { buildClient } from "@datocms/cma-client-browser";
-import { useEffect, useMemo, useState } from "react";
+import { type MouseEventHandler, useEffect, useMemo, useState } from "react";
 import { humanReadableLocale } from "../utils/humanReadableLocale.ts";
 import s from "./AssetLocalizationChecker.module.css";
 
@@ -121,7 +121,8 @@ export const AssetLocalizationChecker = ({
   };
 
   // Function to open the image editor (for setting alt & title)
-  const editImage = async () => {
+  const editImage: MouseEventHandler<HTMLAnchorElement> = async (event) => {
+    event.preventDefault();
     const uploadResult = await ctx.editUpload(upload_id);
 
     // If it's changed, we need to update the metadata... we don't get it from the CMS directly
@@ -131,7 +132,10 @@ export const AssetLocalizationChecker = ({
   };
 
   // Function to edit the field-level metadata
-  const editFieldMetadata = async () => {
+  const editFieldMetadata: MouseEventHandler<HTMLAnchorElement> = async (
+    event,
+  ) => {
+    event.preventDefault();
     const editResult = await ctx.editUploadMetadata(imageField);
 
     // If it's changed, we need to update the metadata... we don't get it from the CMS directly
@@ -157,12 +161,7 @@ export const AssetLocalizationChecker = ({
         <div>
           <p className={s.warning}>
             ❌ Missing, set in{" "}
-            <a
-              href=""
-              onClick={async () => {
-                await editImage();
-              }}
-            >
+            <a href="" onClick={editImage}>
               {fetchedImageData?.filename ? (
                 <code>{fetchedImageData?.filename}</code>
               ) : (
@@ -179,12 +178,7 @@ export const AssetLocalizationChecker = ({
         <div>
           <p className={s.overriddenTrue}>
             ⚠️ Overridden by{" "}
-            <a
-              href=""
-              onClick={async () => {
-                await editFieldMetadata();
-              }}
-            >
+            <a href="" onClick={editFieldMetadata}>
               <code>{fieldLabel}</code>
             </a>{" "}
             field
@@ -196,21 +190,7 @@ export const AssetLocalizationChecker = ({
 
     return (
       <div>
-        <p className={s.ok}>
-          ✅ OK, set in{" "}
-          <a
-            href=""
-            onClick={async () => {
-              await editImage();
-            }}
-          >
-            {fetchedImageData?.filename ? (
-              <code>{fetchedImageData?.filename}</code>
-            ) : (
-              <span>image metadata</span>
-            )}
-          </a>
-        </p>
+        <p className={s.ok}>✅ OK</p>
         <p className={s.snippet}>{text}</p>
       </div>
     );

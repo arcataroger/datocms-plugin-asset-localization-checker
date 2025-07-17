@@ -5,8 +5,10 @@
 }
 
 .localeTable {
-    margin: 0 auto;
+    width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
+    text-align: left;
     p:first-child {
         margin-top: 0;
     }
@@ -14,18 +16,15 @@
     td, th {
         padding: 5px 15px;
         vertical-align: top;
-        &[scope=row] {
-            text-align: left;
-        }
-        max-width: 33%;
     }
 
     tbody td {
         /*border: solid var(--color-grey);*/
     }
 
-    thead {
+    th {
         font-weight: bold;
+        text-align: center;
     }
 
     .overridden-true {
