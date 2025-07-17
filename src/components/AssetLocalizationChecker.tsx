@@ -1,4 +1,4 @@
-import { Button, Canvas, Section, Spinner } from "datocms-react-ui";
+import { Canvas, Spinner } from "datocms-react-ui";
 import type {
   FileFieldValue,
   RenderFieldExtensionCtx,
@@ -7,14 +7,16 @@ import type { Upload } from "@datocms/cma-client/dist/types/generated/SimpleSche
 import { buildClient } from "@datocms/cma-client-browser";
 import { useEffect, useMemo, useState } from "react";
 import { humanReadableLocale } from "../utils/humanReadableLocale.ts";
+import s from "./AssetLocalizationChecker.module.css";
 
-type MetadataByLocale = Map<
-  string,
-  {
+type MetadataByLocale = {
+  [locale: string]: {
+    code: string; // same as the key, like 'en'
+    label: string; // 'English'
     alt: string | null;
     title: string | null;
-  }
->;
+  };
+};
 
 type AltTitleValidators = {
   required_alt_title?: {
@@ -33,10 +35,10 @@ export const AssetLocalizationChecker = ({
     fieldPath,
     currentUserAccessToken,
     field: {
-      attributes: { label, validators, localized: isFieldLocalized },
+      attributes: { label: fieldLabel, validators },
     },
     environment,
-    locale,
+    locale: currentLocale,
   } = ctx;
 
   /** Make sure we have the token. We need this for CMA lookups. Exit early if not. **/
@@ -65,99 +67,48 @@ export const AssetLocalizationChecker = ({
   });
 
   // States
-  const [assetData, setAssetData] = useState<Upload>();
-  const [siteLocales, setSiteLocales] = useState<string[]>([locale]);
+  const [fetchedImageData, setFetchedImageData] = useState<Upload>();
 
   // Variables and calculations
   const imageField = formValues[fieldPath] as FileFieldValue; // Current field the plugin is attached to
   const { upload_id, alt: fieldLevelAlt, title: fieldLevelTitle } = imageField;
   const typedValidators = validators as AltTitleValidators;
-  const metadata = assetData?.default_field_metadata ?? null;
   const localesInThisRecord = (formValues?.internalLocales as string[]) ?? null;
-  const localeName = humanReadableLocale(locale);
   const isTitleRequired: boolean = !!typedValidators?.required_alt_title?.title;
   const isAltRequired: boolean = !!typedValidators?.required_alt_title?.alt;
-  const isReady = assetData && metadata && localesInThisRecord;
+  const isReady =
+    fetchedImageData &&
+    fetchedImageData?.default_field_metadata &&
+    localesInThisRecord;
 
-  // Fetch all the site locales; we need to know the default to calculate inheritance
-  useEffect(() => {
-    (async () => {
-      const settings = await ctx.getSettings();
-      const {
-        site: {
-          attributes: { locales },
-        },
-      } = settings;
-      setSiteLocales(locales);
-    })();
-  }, []);
-
-  const defaultLocale = siteLocales[0];
-
-  // Map the API data into more usable shapes
-  const {
-    assetLevelMetadataByLocale,
-    localesMissingAlts,
-    localesMissingTitles,
-  } = useMemo<{
-    assetLevelMetadataByLocale: MetadataByLocale;
-    localesMissingAlts: string[];
-    localesMissingTitles: string[];
-  }>(() => {
-    const _meta: MetadataByLocale = new Map();
-    const _alt: string[] = [];
-    const _title: string[] = [];
-
-    if (metadata && localesInThisRecord) {
-      for (const locale of localesInThisRecord) {
-        const alt = metadata[locale]?.alt ?? null;
-        const title = metadata[locale]?.title ?? null;
-        _meta.set(locale, { alt, title });
-        if (!alt) _alt.push(locale);
-        if (!title) _title.push(locale);
-      }
+  const metadataByLocale = useMemo<MetadataByLocale>(() => {
+    if (!fetchedImageData?.default_field_metadata) {
+      return {};
     }
 
-    return {
-      assetLevelMetadataByLocale: _meta,
-      localesMissingAlts: _alt,
-      localesMissingTitles: _title,
-    };
-  }, [metadata, localesInThisRecord]);
+    return Object.fromEntries(
+      localesInThisRecord.map((loc) => {
+        const { title, alt } = fetchedImageData.default_field_metadata[loc];
 
-  // Look up the current locale
-  const { isMissingAlt, isMissingTitle, actualAlt, actualTitle } = useMemo<{
-    isMissingAlt: boolean;
-    isMissingTitle: boolean;
-    actualAlt: string;
-    actualTitle: string;
-  }>(() => {
-    const _meta = assetLevelMetadataByLocale.get(locale);
-
-    if (!_meta) {
-      return {
-        isMissingAlt: !fieldLevelAlt,
-        isMissingTitle: !fieldLevelTitle,
-        actualAlt: fieldLevelAlt ?? "",
-        actualTitle: fieldLevelTitle ?? "",
-      };
-    }
-
-    const { alt, title } = _meta;
-    return {
-      isMissingAlt: !fieldLevelAlt && !alt,
-      isMissingTitle: !fieldLevelTitle && !title,
-      actualAlt: fieldLevelAlt ?? alt ?? "",
-      actualTitle: fieldLevelTitle ?? title ?? "",
-    };
-  }, [locale, assetLevelMetadataByLocale]);
+        return [
+          loc,
+          {
+            code: loc,
+            label: humanReadableLocale(loc),
+            alt,
+            title,
+          },
+        ];
+      }),
+    );
+  }, [fetchedImageData?.default_field_metadata, localesInThisRecord]);
 
   // Function to look up asset metadata from the CMA
   const fetchAsset = async () => {
     try {
       const asset = await client.uploads.find(upload_id);
       if (asset) {
-        setAssetData(asset);
+        setFetchedImageData(asset);
       } else {
         throw new Error(
           `Could not retrieve asset ID ${upload_id}. Please check your console log or ask a developer for help.`,
@@ -179,13 +130,6 @@ export const AssetLocalizationChecker = ({
     }
   };
 
-  // Function to navigate to the field itself
-  const navigateToField = async () => {
-    await ctx.navigateTo(`#`);
-    await ctx.navigateTo(`#fieldPath=${fieldPath}`);
-    await ctx.scrollToField(fieldPath);
-  };
-
   // Function to edit the field-level metadata
   const editFieldMetadata = async () => {
     const editResult = await ctx.editUploadMetadata(imageField);
@@ -201,6 +145,77 @@ export const AssetLocalizationChecker = ({
     fetchAsset();
   }, [upload_id]);
 
+  const displayText = ({
+    text,
+    overrideText,
+  }: {
+    text: string | null;
+    overrideText: string | null;
+  }) => {
+    if (!overrideText && !text?.length) {
+      return (
+        <div>
+          <p className={s.warning}>
+            ❌ Missing, set in{" "}
+            <a
+              href=""
+              onClick={async () => {
+                await editImage();
+              }}
+            >
+              {fetchedImageData?.filename ? (
+                <code>{fetchedImageData?.filename}</code>
+              ) : (
+                <span>image metadata</span>
+              )}
+            </a>
+          </p>
+        </div>
+      );
+    }
+
+    if (overrideText) {
+      return (
+        <div>
+          <p className={s.overriddenTrue}>
+            ⚠️ Overridden by{" "}
+            <a
+              href=""
+              onClick={async () => {
+                await editFieldMetadata();
+              }}
+            >
+              <code>{fieldLabel}</code>
+            </a>{" "}
+            field
+          </p>
+          <p className={s.snippet}>{overrideText}</p>
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <p className={s.ok}>
+          ✅ OK, set in{" "}
+          <a
+            href=""
+            onClick={async () => {
+              await editImage();
+            }}
+          >
+            {fetchedImageData?.filename ? (
+              <code>{fetchedImageData?.filename}</code>
+            ) : (
+              <span>image metadata</span>
+            )}
+          </a>
+        </p>
+        <p className={s.snippet}>{text}</p>
+      </div>
+    );
+  };
+
   if (!isReady) {
     return (
       <Canvas ctx={ctx}>
@@ -209,169 +224,57 @@ export const AssetLocalizationChecker = ({
     );
   }
 
-  const currentLocaleChecker = ({
-    name,
-    value,
-    isMissing,
-    isRequired,
-    isFieldLevel,
-  }: {
-    name: string;
-    value: string;
-    isMissing: boolean;
-    isRequired: boolean;
-    isFieldLevel: boolean;
-  }) => {
-    if (isMissing) {
-      if (isRequired) {
-        return (
-          <li>
-            ‼️ {localeName} has no {name}
-          </li>
-        );
-      } else {
-        return (
-          <li>
-            ℹ️ {localeName} has no {name}, but it's not required
-          </li>
-        );
-      }
-    } else if (isFieldLevel) {
-      return (
-        <>
-          <li>
-            ℹ️ Using {humanReadableLocale(defaultLocale)} {name} from "{label}"
-            field: "<strong>{value}</strong>"
-          </li>
-          {!isFieldLocalized && locale !== defaultLocale && (
-            <li>
-              <strong>
-                ⚠️ Warning: The "{label}" field has {name} set. This overrides
-                anything set in the image itself.
-              </strong>{" "}
-              If this isn't what you intended, first{" "}
-              <a
-                href={""}
-                onClick={async () => {
-                  await editFieldMetadata();
-                }}
-              >
-                <strong>edit the field to remove the field-level {name}</strong>
-              </a>{" "}
-              and then{" "}
-              <a href="" onClick={async () => await editImage()}>
-                <strong>
-                  use the media editor to set the {localeName} asset-level{" "}
-                  {name}
-                </strong>
-              </a>
-              .
-            </li>
-          )}
-        </>
-      );
-    } else {
-      return (
-        <li>
-          ✅ {localeName} {name} set in{" "}
-          {assetData?.filename ? `"${assetData.filename}"` : "image"}: "
-          <strong>{value}</strong>"
-        </li>
-      );
-    }
-  };
-
   return (
     <Canvas ctx={ctx}>
-      <Section title={`Asset Localization Checker`}>
-        <h3>Current locale: {localeName}</h3>
-        <ul>
-          {currentLocaleChecker({
-            name: "title",
-            value: actualTitle,
-            isMissing: isMissingTitle,
-            isRequired: isTitleRequired,
-            isFieldLevel: !!fieldLevelTitle,
-          })}
+      <table className={s.localeTable}>
+        <thead>
+          <tr>
+            <th></th>
+            <th>
+              Title
+              <br />
+              <span className={s.helperText}>
+                ({isTitleRequired ? "Required" : "Optional"})
+              </span>
+            </th>
+            <th>
+              Alt Text
+              <br />
+              <span className={s.helperText}>
+                ({isAltRequired ? "Required" : "Optional"})
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {localesInThisRecord.map((loc) => {
+            const locName = metadataByLocale[loc].label;
 
-          {currentLocaleChecker({
-            name: "alt text",
-            value: actualAlt,
-            isMissing: isMissingAlt,
-            isRequired: isAltRequired,
-            isFieldLevel: !!fieldLevelAlt,
+            return (
+              <tr>
+                <th scope="row">
+                  {locName}
+                  {loc === currentLocale && (
+                    <p className={s.helperText}>(current)</p>
+                  )}
+                </th>
+                <td>
+                  {displayText({
+                    text: metadataByLocale[loc].title,
+                    overrideText: fieldLevelTitle,
+                  })}
+                </td>
+                <td>
+                  {displayText({
+                    text: metadataByLocale[loc].alt,
+                    overrideText: fieldLevelAlt,
+                  })}
+                </td>
+              </tr>
+            );
           })}
-        </ul>
-      </Section>
-
-      {localesMissingAlts.length >= 1 && (
-        <Section
-          title={`⚠️ Missing alt text detected in ${localesMissingAlts.length} locale(s):`}
-        >
-          <ul>
-            {localesMissingAlts.map((loc) => {
-              return (
-                <li>
-                  <strong>{humanReadableLocale(loc)}</strong> does not have alt
-                  text specified at the asset level.
-                </li>
-              );
-            })}
-          </ul>
-          <Button buttonSize={"xxs"} onClick={async () => await editImage()}>
-            Fix: Edit the asset to add alt text for each locale
-          </Button>
-        </Section>
-      )}
-      {localesMissingTitles.length >= 1 && (
-        <Section
-          title={`⚠️ Missing title detected in ${localesMissingTitles.length} locale(s):`}
-          headerStyle={{ marginTop: "1em" }}
-        >
-          <ul>
-            {localesMissingTitles.map((loc) => {
-              return (
-                <li>
-                  <strong>{humanReadableLocale(loc)}</strong> does not have a
-                  title specified at the asset level.
-                </li>
-              );
-            })}
-          </ul>
-          <Button buttonSize={"xxs"} onClick={async () => await editImage()}>
-            Fix: Edit the asset to add a title for each locale
-          </Button>
-        </Section>
-      )}
-      {(fieldLevelAlt || fieldLevelTitle) && (
-        <Section
-          title={`⚠️ Field-level override(s) detected`}
-          headerStyle={{ marginTop: "1em" }}
-        >
-          <p>
-            You also have field-level override(s) specified in the "{label}"
-            field:
-            <ul>
-              {fieldLevelAlt && <li>Alt: "{fieldLevelAlt}"</li>}
-              {fieldLevelTitle && <li>Title: "{fieldLevelTitle}"</li>}
-            </ul>
-          </p>
-          <p>
-            <strong>
-              This overrides any asset-level text specified, meaning all locales
-              will use this value instead.
-            </strong>
-          </p>
-          <Button
-            buttonSize={"xxs"}
-            onClick={async () => {
-              await navigateToField();
-            }}
-          >
-            Fix: Edit the field itself to remove override(s)
-          </Button>
-        </Section>
-      )}
+        </tbody>
+      </table>
     </Canvas>
   );
 };

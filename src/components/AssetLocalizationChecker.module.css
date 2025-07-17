@@ -1,0 +1,68 @@
+:root {
+    --color-grey: #999;
+    --color-light-grey: #EEE;
+    --color-red: #f44;
+}
+
+.localeTable {
+    margin: 0 auto;
+    border-collapse: collapse;
+    p:first-child {
+        margin-top: 0;
+    }
+
+    td, th {
+        padding: 5px 15px;
+        vertical-align: top;
+        &[scope=row] {
+            text-align: left;
+        }
+        max-width: 33%;
+    }
+
+    tbody td {
+        /*border: solid var(--color-grey);*/
+    }
+
+    thead {
+        font-weight: bold;
+    }
+
+    .overridden-true {
+        /*color: var(--color-red);*/
+    }
+
+
+}
+
+.snippet {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--color-grey);
+    font-style: italic;
+
+    &::before {
+        content: "";
+        border-left: 2px solid var(--color-grey);
+        margin-right: 5px;
+    }
+}
+
+.helperText {
+    color: var(--color-grey);
+    font-weight: normal;
+
+    &.required-true {
+        font-weight: bold;
+    }
+}
+
+.warning {
+    color: var(--color-red);
+}
+
+code {
+    background: var(--color-light-grey);
+    padding: 0 5px;
+}
