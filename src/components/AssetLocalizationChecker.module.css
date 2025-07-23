@@ -36,16 +36,16 @@
 }
 
 .snippet {
-    white-space: nowrap;
-    overflow: hidden;
     text-overflow: ellipsis;
     color: var(--color-grey);
     font-style: italic;
 
     &::before {
-        content: "";
-        border-left: 2px solid var(--color-grey);
-        margin-right: 5px;
+        content: "“";
+    }
+
+    &::after {
+        content: "”";
     }
 }
 

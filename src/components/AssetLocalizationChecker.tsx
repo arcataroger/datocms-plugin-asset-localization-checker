@@ -8,6 +8,7 @@ import { buildClient } from "@datocms/cma-client-browser";
 import { type MouseEventHandler, useEffect, useMemo, useState } from "react";
 import { humanReadableLocale } from "../utils/humanReadableLocale.ts";
 import s from "./AssetLocalizationChecker.module.css";
+import { getMaybeLocalizedValue } from "../utils/getMaybeLocalizedValue.ts";
 
 type MetadataByLocale = {
   [locale: string]: {
@@ -70,7 +71,10 @@ export const AssetLocalizationChecker = ({
   const [fetchedImageData, setFetchedImageData] = useState<Upload>();
 
   // Variables and calculations
-  const imageField = formValues[fieldPath] as FileFieldValue; // Current field the plugin is attached to
+  const imageField = getMaybeLocalizedValue(
+    formValues,
+    fieldPath,
+  ) as FileFieldValue; // Current field the plugin is attached to
   const { upload_id, alt: fieldLevelAlt, title: fieldLevelTitle } = imageField;
   const typedValidators = validators as AltTitleValidators;
   const localesInThisRecord = (formValues?.internalLocales as string[]) ?? null;
@@ -199,7 +203,8 @@ export const AssetLocalizationChecker = ({
   if (!isReady) {
     return (
       <Canvas ctx={ctx}>
-        <Spinner size={24} /> Loading, please wait...
+        <Spinner size={24} /> Asset Localization Checker is loading, please
+        wait...
       </Canvas>
     );
   }
